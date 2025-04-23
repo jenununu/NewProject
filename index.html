@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>결례계산기</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .job-buttons { display: flex; flex-direction: column; gap: 5px; margin-bottom: 20px; }
+    .job-group-header { 
+      width: 100%;
+      margin-top: 15px;
+      margin-bottom: 5px;
+      font-weight: bold;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 3px;
+    }
+    .job-group-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    .job-group-container button { padding: 5px 10px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    input.points { width: 60px; text-align: center; }
+    .controls button { margin: 0 2px; }
+    .btn-remove { color: red; }
+    .ctrl-group { display: flex; gap: 2px; margin-bottom: 2px; }
+    .row-actions { display: flex; flex-direction: row; gap: 5px; justify-content: center; }
+    .btn-move-up, .btn-move-down { font-size: 14px; padding: 2px 5px; }
+    .perfection-label {
+      color: red;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+    .star {
+      color: gold;
+      margin: 0 3px;
+    }
+  </style>
+</head>
+<body>
+  <h1>생주님을 위한 상인 2차 포함 루트 계산기</h1><h4>제작:L결례</h4>
+  <div class="job-buttons" id="jobButtons"></div>
+  <table>
+    <thead>
+      <tr>
+        <th>순서</th><th>직업</th><th>잡포 입력</th><th>STR</th><th>AGI</th><th>INT</th><th>VIT</th><th>액션</th>
+      </tr>
+    </thead>
+    <tbody id="routeBody"></tbody>
+  </table>
+  <div>
+    <button id="btnSave">저장</button>
+    <button id="btnLoad">불러오기</button>
+    <button id="btnReset">초기화</button>
+    <button id="btnExport">CSV 내보내기</button>
+  </div>
+<script>
+  const jobData = {
+    '무직':       {str:null,dex:null,int:null,vit:null},
+    '무도가':     {str:{unit:5,cap:-20}, dex:null,            int:{unit:3,cap:-10}, vit:{unit:3,cap:30}},
+    '투사':       {str:{unit:3,cap:30},  dex:{unit:10,cap:-10},int:{unit:10,cap:-10},vit:{unit:10,cap:10}},
+    '전사':       {str:{unit:4,cap:30},  dex:{unit:9,cap:-10}, int:{unit:8,cap:-10}, vit:{unit:10,cap:10}},
+    '검사':       {str:{unit:3,cap:30},  dex:{unit:8,cap:-10}, int:{unit:10,cap:10}, vit:null},
+    '검객':       {str:{unit:10,cap:10}, dex:{unit:4,cap:30}, int:{unit:10,cap:-10}, vit:null},
+    '자객':       {str:{unit:7,cap:20},  dex:{unit:6,cap:20}, int:{unit:5,cap:-10}, vit:null},
+    '궁사':       {str:{unit:10,cap:10}, dex:{unit:3,cap:30}, int:{unit:5,cap:-10}, vit:{unit:8,cap:-10}},
+    '악사':       {str:{unit:1,cap:-10}, dex:{unit:10,cap:10},int:{unit:4,cap:30},  vit:{unit:4,cap:-10}},
+    '네크로맨서': {str:{unit:1,cap:-10}, dex:{unit:1,cap:-10}, int:{unit:1,cap:50}, vit:{unit:1,cap:-10}},
+    '순수기사':   {str:{unit:3,cap:70},  dex:{unit:9,cap:30}, int:{unit:5,cap:-20}, vit:{unit:3,cap:70}},
+    '빛의기사':   {str:{unit:5,cap:60},  dex:{unit:6,cap:-20}, int:{unit:10,cap:40},vit:{unit:5,cap:60}},
+    '어둠의기사': {str:{unit:5,cap:60},  dex:{unit:6,cap:-20}, int:{unit:10,cap:40},vit:{unit:5,cap:60}},
+    '순수마법사': {str:{unit:5,cap:-20}, dex:{unit:4,cap:60}, int:{unit:3,cap:70}, vit:{unit:5,cap:-20}},
+    '빛의마법사': {str:{unit:10,cap:40}, dex:{unit:5,cap:60}, int:{unit:5,cap:60}, vit:{unit:6,cap:-20}},
+    '어둠의마법사':{str:{unit:10,cap:40},dex:{unit:5,cap:60}, int:{unit:5,cap:60}, vit:{unit:6,cap:-20}},
+    '모험가':     {str:{unit:10,cap:10}, dex:{unit:10,cap:10},int:{unit:10,cap:10}, vit:{unit:3,cap:30}},
+    '탐색가':     {str:{unit:10,cap:20}, dex:{unit:3,cap:70}, int:{unit:8,cap:-20}, vit:{unit:9,cap:-20}},
+    '자연인':     {str:{unit:9,cap:30},  dex:{unit:7,cap:40}, int:{unit:5,cap:-20}, vit:{unit:3,cap:40}},
+    '음유시인':   {str:{unit:10,cap:20},dex:{unit:4,cap:50}, int:{unit:5,cap:-20}, vit:{unit:4,cap:50}},
+    '정령술사':   {str:{unit:10,cap:20},dex:{unit:4,cap:50}, int:{unit:5,cap:-20}, vit:{unit:4,cap:50}},
+    '상인':       {str:{unit:2,cap:-10},  dex:{unit:4,cap:30}, int:{unit:10,cap:10},vit:{unit:10,cap:10}},
+    '재단사':     {str:{unit:4,cap:-20},  dex:{unit:3,cap:70}, int:{unit:8,cap:-20}, vit:{unit:6,cap:30}},
+    '세공사':     {str:{unit:4,cap:-20},  dex:{unit:4,cap:60}, int:{unit:9,cap:-20}, vit:{unit:9,cap:40}},
+    '대장장이':   {str:{unit:10,cap:20}, dex:{unit:4,cap:60}, int:{unit:6,cap:-20}, vit:{unit:7,cap:30}},
+    '미용사':     {str:{unit:5,cap:-20},  dex:{unit:3,cap:70}, int:{unit:8,cap:-20}, vit:{unit:6,cap:40}},
+    '목공사':     {str:{unit:10,cap:20}, dex:{unit:4,cap:50}, int:{unit:6,cap:-20}, vit:{unit:9,cap:40}},
+    '연금술사':   {str:{unit:5,cap:-20},  dex:{unit:5,cap:50}, int:{unit:10,cap:20},vit:{unit:8,cap:30}}
+  };
+  
+  // 직업 그룹 정의
+  const jobGroups = [
+    { 
+        title: "전사 계열", 
+        jobs: ["무도가", "투사", "전사", "검사", "검객", "자객", "궁사", "악사", "네크로맨서"]
+    },
+    { 
+        title: "기사/마법사 계열", 
+        jobs: ["순수기사", "빛의기사", "어둠의기사", "순수마법사", "빛의마법사", "어둠의마법사"]
+    },
+    { 
+        title: "모험가 계열", 
+        jobs: ["모험가", "탐색가", "자연인", "음유시인", "정령술사"]
+    },
+    { 
+        title: "상인 계열", 
+        jobs: ["상인", "재단사", "세공사", "대장장이", "미용사", "목공사", "연금술사"]
+    }
+  ];
+  
+  const MAX_POINT = 100;
+  const routeBody = document.getElementById('routeBody');
+  const jobButtons = document.getElementById('jobButtons');
+  
+  // 직업별 사용된 잡포인트를 추적하는 객체 추가
+  const usedJobPoints = {};
+  // perfectJob 상태를 추적하는 객체 추가
+  const perfectJobs = {};
+
+  // 직업 버튼 생성 코드
+  function createJobButtons() {
+    jobButtons.innerHTML = '';
+    
+    jobGroups.forEach(group => {
+        // 그룹 헤더 추가
+        const header = document.createElement('div');
+        header.className = 'job-group-header';
+        header.textContent = group.title;
+        jobButtons.appendChild(header);
+        
+        // 그룹 컨테이너 추가
+        const container = document.createElement('div');
+        container.className = 'job-group-container';
+        jobButtons.appendChild(container);
+        
+        // 해당 그룹의 직업 버튼 추가
+        group.jobs.forEach(job => {
+            const btn = document.createElement('button');
+            btn.textContent = job;
+            btn.addEventListener('click', () => addRow(job));
+            container.appendChild(btn);
+        });
+    });
+  }
+
+  // 페이지 로드 시 직업 버튼 생성
+  window.addEventListener('load', () => {
+    createJobButtons();
+    addRow('무직', 0, true);
+  });
+
+  // 특정 직업에 대한 남은 잡포인트 계산 함수 추가
+  function getRemainingJobPoints(job) {
+    if (job === '무직') return 0;
+    
+    const used = usedJobPoints[job] || 0;
+    return MAX_POINT - used;
+  }
+
+  // 직업별 사용된 잡포인트 업데이트 함수
+  function updateUsedJobPoints() {
+    // 이전 상태 저장
+    const prevPerfectJobs = {...perfectJobs};
+    
+    // 초기화
+    Object.keys(jobData).forEach(job => {
+      usedJobPoints[job] = 0;
+      perfectJobs[job] = false;
+    });
+    
+    // 현재 테이블에서 직업별 사용된 포인트 합산
+    Array.from(routeBody.rows).forEach((tr, idx) => {
+      if (idx === 0) return; // 무직 기본값 건너뛰기
+      
+      const job = tr.dataset.job;
+      const pointInput = tr.querySelector('input.points');
+      if (pointInput) {
+        const points = Number(pointInput.value) || 0;
+        usedJobPoints[job] = (usedJobPoints[job] || 0) + points;
+      }
+    });
+    
+    // 퍼펙션 상태 업데이트
+    Object.keys(usedJobPoints).forEach(job => {
+      perfectJobs[job] = usedJobPoints[job] === MAX_POINT;
+    });
+    
+    // 행별로 퍼펙션 표시 업데이트
+    updatePerfectionDisplay(prevPerfectJobs);
+    
+    // 모든 잡포 입력 필드의 최대값 업데이트
+    updateInputMaxValues();
+  }
+  
+  // 퍼펙션 표시 업데이트
+  function updatePerfectionDisplay(prevPerfectJobs) {
+    Array.from(routeBody.rows).forEach((tr, idx) => {
+      if (idx === 0) return; // 무직 제외
+      
+      const job = tr.dataset.job;
+      let perfectionLabel = tr.querySelector('.perfection-label');
+      
+      // 새롭게 퍼펙션 달성한 경우에만 표시
+      if (perfectJobs[job] && !prevPerfectJobs[job]) {
+        if (!perfectionLabel) {
+          perfectionLabel = document.createElement('div');
+          perfectionLabel.className = 'perfection-label';
+          perfectionLabel.innerHTML = '<span class="star">★</span>PERFECTION!<span class="star">★</span>';
+          
+          const jobCell = tr.cells[1];
+          jobCell.appendChild(perfectionLabel);
+        }
+      } 
+      // 퍼펙션 해제된 경우 표시 제거
+      else if (!perfectJobs[job] && perfectionLabel) {
+        perfectionLabel.remove();
+      }
+    });
+  }
+  
+  // 인풋 필드 최대값 업데이트
+  function updateInputMaxValues() {
+    Array.from(routeBody.rows).forEach((tr, idx) => {
+      if (idx === 0) return;
+      
+      const job = tr.dataset.job;
+      const pointInput = tr.querySelector('input.points');
+      const currentValue = Number(pointInput.value) || 0;
+      const totalUsed = usedJobPoints[job] || 0;
+      const otherUsed = totalUsed - currentValue;
+      const maxAllowed = MAX_POINT - otherUsed;
+      
+      // 최대값 업데이트
+      pointInput.max = maxAllowed;
+    });
+  }
+
+  function addRow(job, pts = 0, fixed = false) {
+    const tr = document.createElement('tr'); tr.dataset.job = job;
+    const idx = routeBody.rows.length + 1;
+    
+    // 추가할 직업의 남은 포인트 계산
+    const remainingPoints = getRemainingJobPoints(job);
+    // 입력 가능한 최대 포인트 계산 (기본값 또는 남은 포인트 중 작은 값)
+    const maxPts = fixed ? 0 : Math.min(remainingPoints, MAX_POINT);
+    // 입력할 포인트 (지정된 값과 최대값 중 작은 값)
+    const validPts = fixed ? 0 : Math.min(pts, maxPts);
+    
+    if (fixed) {
+      tr.innerHTML = `<td>${idx}</td><td>${job}</td><td>—</td><td class="cum-str">5</td><td class="cum-dex">5</td><td class="cum-int">5</td><td class="cum-vit">5</td><td></td>`;
+    } else {
+      tr.innerHTML = `
+        <td>${idx}</td>
+        <td>${job}</td>
+        <td>
+          <div class="ctrl-group">
+            <button class="ctrl" data-d="-100">-100</button>
+            <button class="ctrl" data-d="-50">-50</button>
+            <button class="ctrl" data-d="-10">-10</button>
+            <button class="ctrl" data-d="-1">-1</button>
+          </div>
+          <input class="points" type="number" min="0" max="${maxPts}" value="${validPts}">
+          <div class="ctrl-group">
+            <button class="ctrl" data-d="1">+1</button>
+            <button class="ctrl" data-d="10">+10</button>
+            <button class="ctrl" data-d="50">+50</button>
+            <button class="ctrl" data-d="100">+100</button>
+          </div>
+        </td>
+        <td class="cum-str">0</td>
+        <td class="cum-dex">0</td>
+        <td class="cum-int">0</td>
+        <td class="cum-vit">0</td>
+        <td>
+          <div class="row-actions">
+            <button class="btn-move-up" title="위로 이동">↑</button>
+            <button class="btn-move-down" title="아래로 이동">↓</button>
+            <button class="btn-remove">삭제</button>
+          </div>
+        </td>`;
+      tr.querySelectorAll('.ctrl').forEach(btn => btn.addEventListener('click', () => updateLocalPts(tr, Number(btn.dataset.d))));
+      tr.querySelector('input.points').addEventListener('input', () => updateLocalPts(tr, 0));
+      tr.querySelector('.btn-remove').addEventListener('click', () => { 
+        tr.remove(); 
+        recalcAll(); 
+        refreshIndices(); 
+        updateUsedJobPoints(); // 행 삭제 시 사용된 포인트 업데이트
+      });
+      
+      // 순서 변경 버튼 이벤트 추가
+      tr.querySelector('.btn-move-up').addEventListener('click', () => moveRow(tr, 'up'));
+      tr.querySelector('.btn-move-down').addEventListener('click', () => moveRow(tr, 'down'));
+    }
+    routeBody.appendChild(tr);
+    recalcAll();
+    updateUsedJobPoints(); // 행 추가 시 사용된 포인트 업데이트
+  }
+
+  // 행 위치 이동 함수 수정
+  function moveRow(tr, direction) {
+    const rows = Array.from(routeBody.rows);
+    const currentIndex = rows.indexOf(tr);
+    
+    // 첫 번째 행(무직)은 이동 불가, 그리고 범위 체크
+    if (currentIndex <= 0 || (direction === 'up' && currentIndex <= 1)) {
+      return;
+    }
+    
+    if (direction === 'down' && currentIndex >= rows.length - 1) {
+      return;
+    }
+    
+    // 이동할 행과 현재 행 위치 바꾸기
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const targetRow = rows[targetIndex];
+    
+    // 무직(첫 번째 행)은 이동 불가능하게 처리
+    if (targetIndex === 0) {
+      return;
+    }
+    
+    if (direction === 'up') {
+      routeBody.insertBefore(tr, targetRow);
+    } else {
+      // 수정된 아래로 이동 로직
+      if (targetIndex < rows.length - 1) {
+        routeBody.insertBefore(tr, rows[targetIndex + 1]);
+      } else {
+        routeBody.appendChild(tr);
+      }
+    }
+    
+    // 인덱스 및 스탯 재계산
+    refreshIndices();
+    recalcAll();
+  }
+
+  function updateLocalPts(tr, delta) {
+    const job = tr.dataset.job;
+    const inp = tr.querySelector('input.points');
+    let val = Number(inp.value) + delta;
+    
+    // 현재 값 제외한 이 직업에 사용된 다른 포인트 계산
+    const currentValue = Number(inp.value) || 0;
+    const totalUsed = usedJobPoints[job] || 0;
+    const otherUsed = totalUsed - currentValue;
+    
+    // 최대 허용 포인트 계산
+    const maxAllowed = MAX_POINT - otherUsed;
+    
+    // 유효 범위 내로 값 조정
+    val = Math.max(0, Math.min(val, maxAllowed));
+    inp.value = val;
+    
+    recalcAll();
+    updateUsedJobPoints(); // 포인트 변경 시 사용된 포인트 업데이트
+  }
+
+  // stat 변경 로직 재구성
+  function applyDelta(cur, delta, cap) {
+    if (delta > 0) {
+      // 상승: 현재 stat이 cap보다 작을 때만 적용
+      if (cur < cap) {
+        return Math.min(cur + delta, cap);
+      }
+      return cur;
+    } else if (delta < 0) {
+      const minStat = Math.abs(cap);
+      // 하락: 현재 stat이 minStat보다 클 때만 적용
+      if (cur > minStat) {
+        return Math.max(cur + delta, minStat);
+      }
+      return cur;
+    }
+    return cur;
+  }
+
+  function recalcAll() {
+    // 초기 기본 stat
+    let s = 5, d = 5, i = 5, v = 5;
+    
+    // 직업별 누적 잡포인트 추적
+    const jobPointsAccumulated = {};
+    
+    // 각 행의 누적 스탯 계산
+    Array.from(routeBody.rows).forEach((tr, idx) => {
+      if (idx === 0) {
+        // 무직 기본값 유지
+        tr.querySelector('.cum-str').textContent = s;
+        tr.querySelector('.cum-dex').textContent = d;
+        tr.querySelector('.cum-int').textContent = i;
+        tr.querySelector('.cum-vit').textContent = v;
+      } else {
+        const job = tr.dataset.job;
+        const points = Number(tr.querySelector('input.points').value) || 0;
+        
+        // 현재 직업의 누적 잡포인트 계산
+        const prevPoints = jobPointsAccumulated[job] || 0;
+        const newPoints = prevPoints + points;
+        jobPointsAccumulated[job] = newPoints;
+        
+        // 이전 잡포인트와 현재 총 잡포인트의 스탯 변화 계산
+        const def = jobData[job];
+        
+        // 이전 잡포인트에 따른 스탯 변화
+        let oldStr = 0, oldDex = 0, oldInt = 0, oldVit = 0;
+        if (def.str) oldStr = Math.floor(prevPoints / def.str.unit) * (def.str.cap > 0 ? 1 : -1);
+        if (def.dex) oldDex = Math.floor(prevPoints / def.dex.unit) * (def.dex.cap > 0 ? 1 : -1);
+        if (def.int) oldInt = Math.floor(prevPoints / def.int.unit) * (def.int.cap > 0 ? 1 : -1);
+        if (def.vit) oldVit = Math.floor(prevPoints / def.vit.unit) * (def.vit.cap > 0 ? 1 : -1);
+        
+        // 현재 총 잡포인트에 따른 스탯 변화
+        let newStr = 0, newDex = 0, newInt = 0, newVit = 0;
+        if (def.str) newStr = Math.floor(newPoints / def.str.unit) * (def.str.cap > 0 ? 1 : -1);
+        if (def.dex) newDex = Math.floor(newPoints / def.dex.unit) * (def.dex.cap > 0 ? 1 : -1);
+        if (def.int) newInt = Math.floor(newPoints / def.int.unit) * (def.int.cap > 0 ? 1 : -1);
+        if (def.vit) newVit = Math.floor(newPoints / def.vit.unit) * (def.vit.cap > 0 ? 1 : -1);
+        
+        // 현재 행에서 추가된 스탯 변화
+        const ds = newStr - oldStr;
+        const dd = newDex - oldDex;
+        const di = newInt - oldInt;
+        const dv = newVit - oldVit;
+        
+        // 스탯 적용 (한계치 고려)
+        if (def.str) s = applyDelta(s, ds, def.str.cap);
+        if (def.dex) d = applyDelta(d, dd, def.dex.cap);
+        if (def.int) i = applyDelta(i, di, def.int.cap);
+        if (def.vit) v = applyDelta(v, dv, def.vit.cap);
+        
+        // 셀 업데이트
+        tr.querySelector('.cum-str').textContent = s;
+        tr.querySelector('.cum-dex').textContent = d;
+        tr.querySelector('.cum-int').textContent = i;
+        tr.querySelector('.cum-vit').textContent = v;
+      }
+    });
+  }
+
+  function refreshIndices() {
+    Array.from(routeBody.rows).forEach((tr, idx) => tr.cells[0].textContent = idx + 1);
+  }
+
+  document.getElementById('btnSave').addEventListener('click', () => {
+    const data = Array.from(routeBody.rows).slice(1).map(tr => ({job: tr.dataset.job, pts: Number(tr.querySelector('input.points')?.value) || 0}));
+    localStorage.setItem('route', JSON.stringify(data)); alert('저장되었습니다');
+  });
+  
+  document.getElementById('btnLoad').addEventListener('click', () => {
+    const arr = JSON.parse(localStorage.getItem('route') || '[]'); 
+    routeBody.innerHTML = ''; 
+    addRow('무직', 0, true); 
+    arr.forEach(x => addRow(x.job, x.pts));
+    updateUsedJobPoints(); // 불러오기 후 사용된 포인트 업데이트
+  });
+  
+  document.getElementById('btnReset').addEventListener('click', () => { 
+    if (confirm('초기화하시겠습니까?')) { 
+      routeBody.innerHTML = ''; 
+      addRow('무직', 0, true); 
+      // 사용된 잡포인트 초기화
+      Object.keys(jobData).forEach(job => {
+        usedJobPoints[job] = 0;
+        perfectJobs[job] = false;
+      });
+    } 
+  });
+  
+  document.getElementById('btnExport').addEventListener('click', () => {
+    // CSV 헤더에 잡포인트 컬럼 추가
+    let csv = '순서,직업,잡포인트,STR,AGI,INT,VIT\n';
+    Array.from(routeBody.rows).forEach((tr, idx) => {
+      // 무직(첫 번째 행)은 잡포인트가 없으므로 특별 처리
+      const jobPoints = idx === 0 ? "—" : tr.querySelector('input.points')?.value || "0";
+      
+      csv += [
+        idx+1, 
+        tr.dataset.job, 
+        jobPoints,
+        tr.querySelector('.cum-str').textContent, 
+        tr.querySelector('.cum-dex').textContent, 
+        tr.querySelector('.cum-int').textContent, 
+        tr.querySelector('.cum-vit').textContent
+      ].join(',') + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv' }), url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'route.csv'; a.click(); URL.revokeObjectURL(url);
+  });
+</script>
+<h4>제작:L결례</h4>
+</body>
+</html>
